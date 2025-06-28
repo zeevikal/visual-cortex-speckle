@@ -1,0 +1,57 @@
+data:
+  root_path: "../RawData/"
+  pickle_path: "../Data/vis_cortex_data.pickle"
+  subjects: null
+  shape_filter: null
+  feature_type: "manhattan"
+  train_size: 0.5
+  n_chunks: 10
+  frames_limit: 20000
+
+model:
+  model_type: "convlstm"
+  num_classes: 2  # Binary classification as mentioned in paper
+  input_size: 1
+  hidden_size: 64
+  kernel_size: 3
+  fc_hidden_size: 256
+  dropout_rate: 0.0
+  sequence_length: 64  # 64 input frames as mentioned in paper
+
+training:
+  batch_size: 64  # As specified in paper
+  epochs: 50  # Approximately 50 epochs to converge as mentioned
+  learning_rate: 0.001  # As specified in paper
+  optimizer: "adam"  # Adam optimizer as mentioned
+  scheduler: "none"  # No scheduler mentioned in paper
+  validation_split: 0.2
+  early_stopping_patience: 20
+  save_every: 10
+  save_best: true
+  loss_function: "binary_crossentropy"  # Binary cross-entropy as mentioned
+
+# Adam optimizer parameters as specified in paper
+optimizer_params:
+  beta1: 0.9
+  beta2: 0.999
+
+scheduler:
+  mode: "min"
+  factor: 0.5
+  patience: 20
+  min_lr: 0.0001
+  verbose: true
+
+# Paths
+save_dir: "checkpoints_convlstm"
+log_dir: "logs_convlstm"
+results_dir: "results_convlstm"
+
+# Device
+device: "auto"  # Use GPU (2080Ti mentioned in paper)
+
+# Random seed
+seed: 42
+
+# Logging
+verbose: true

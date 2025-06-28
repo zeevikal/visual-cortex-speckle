@@ -1,0 +1,42 @@
+data:
+  root_path: "../RawData/"
+  pickle_path: "../Data/vis_cortex_data_06032022.pickle"
+  subjects: ["ZeevKal"]
+  shape_filter: ["Rectangle", "Circle", "Triangle"]
+  feature_type: "manhattan"
+  train_size: 0.5
+  n_chunks: 100
+  frames_limit: 20000
+
+model:
+  model_type: "conv1d"
+  num_classes: 3
+  input_channels: 1
+  num_filters: 64
+  kernel_size: 3
+  dropout_rate: 0.0
+
+training:
+  batch_size: 32
+  epochs: 500
+  learning_rate: 0.001
+  optimizer: "adam"
+  scheduler: "plateau"
+  validation_split: 0.2
+  early_stopping_patience: 100
+  save_every: 50
+  save_best: true
+
+scheduler:
+  mode: "min"
+  factor: 0.5
+  patience: 20
+  min_lr: 0.0001
+  verbose: true
+
+save_dir: "models/basic_shapes"
+log_dir: "logs/basic_shapes"
+results_dir: "results/basic_shapes"
+device: "auto"
+seed: 42
+verbose: true
