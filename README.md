@@ -134,6 +134,8 @@ make eval MODEL_PATH=checkpoints/best_model.pth
 
 ## Model Architecture
 
+![alt text](figures/Fig4.png)
+
 ### ConvLSTM Architecture (Default)
 
 The default model uses a Convolutional LSTM architecture as described in our research paper:
@@ -501,14 +503,47 @@ visual-cortex-speckle/
 
 ## Results
 
-The model achieves high accuracy on shape classification tasks. See the `results/` directory for detailed performance metrics and visualizations.
+#### 2.1 Detection of Speckle-Based Visual Cortex Reaction 
+
+![alt text](figures/Fig1.png)
+
+This study represents the first experimental setup designed to classify the speckle patterns reflected from the human visual cortex in response to visual stimuli. The experimental framework, as seen in Fig. 1, aimed to validate whether the laser speckle pattern imaging, combined with DNN data processing, could reliably classify the neural-visual brain activity caused by the observation of different geometric shapes.
+Before each recording session, participants were shown a blank white screen to establish a baseline speckle pattern, ensuring the stability of neural responses and minimizing external noise. The speckle patterns were continuously recorded as the tested subjects viewed different shape stimuli. The captured videos were processed and analyzed to determine whether distinct neural responses could be extracted for different visual stimuli.
+The results confirmed that the visual cortex speckle pattern imaging classification could differentiate between a structured and blank screen visual input. The model successfully classified polygonal shapes with higher accuracy, while circular shapes posed a greater challenge with low accuracy, as shown in the confusion matrix, Fig. 2. These findings validate the feasibility of using speckle-based imaging as a non-invasive technique to monitor visual cortex activity, setting the foundation for future advancements in the laser-based detection of neural activity. 
+
+![alt text](figures/Fig2.png)
+
+#### 2.2 Single-Shape Classification
+
+![alt text](figures/Fig3.png)
+
+The research was subdivided into several tasks. The first task evaluated the model’s ability to classify speckle patterns generated from the neural responses to single-shape stimuli. Each video presented the participants with a sequence of TV screens containing one geometric shape. A single circle, triangle, or rectangle was consequently displayed on a white background. This setup ensured that neural activity, detected through the speckle pattern classification, was primarily driven by shape recognition without interference from additional visual elements.
+A sample set of the three video types shown to each participant is given in Fig. 3a. The video, displaying a circle, did not exhibit any noticeable speckle pattern variations, setting it apart from other shapes. The resulting poor classification accuracy is shown in Table 1. The validation set accuracy remained close to random, and the test set results indicated limited generalization capability.
+The confusion matrix, Fig. 2, highlights the model failure to classify circles correctly (0% recall), whereas rectangles received the highest recall (100%) and F1-score (77%), triangles with a recall of 90% and an F1-score of 69%. These findings indicate that the neural response associated with polygonal shapes, particularly rectangles, was more distinguishable in the speckles pattern data, as shown in Table 1.
+
+#### 2.3 Multi-Shape Classification
+The second task tested the model’s ability to classify speckle patterns corresponding to visual stimuli containing multiple instances of the same geometric shape. In each video, participants were shown several copies of a single shape, either triangles, rectangles, or circles, randomly positioned across the screen. This setup was designed to examine whether the repetition of a shape altered neural responses and whether the model could still differentiate between shape categories when multiple instances were simultaneously introduced. The random positioning ensured that the entire visual field was engaged, reducing potential biases related to the spatial location.
+A sample set of these videos is shown in Fig. 3b. The validation set accuracy varied, likely due to noise in the speckle signals. The test set accuracy reached 55%, with the rectangles achieving the highest recall (60%) and F1-score (71%), as summarized in Table 1.
+for other classes, such as multi-triangles and multi-circles, was significantly lower, with multi-triangles achieving only 10% recall and multi-circles failing to achieve any correct predictions (0% recall). 
+
+#### 2.4 Mixed-Shape Classification
+The third task assessed the model’s ability to classify speckle patterns generated from visual stimuli containing multiple geometric shapes presented simultaneously in each screen frame. Unlike previous tasks, where stimuli consisted of either a single shape or multiple instances of the same shape, this task introduced frames in which a random number of circles, triangles, and rectangles appeared together in random positions. This setup aimed to evaluate the neural response to complex visual scenes where different shapes coexisted within a single stimulus, testing the model’s capacity to generalize across varying shape compositions.
+A sample set of these videos is shown in Fig. 3c. As expected, the speckle signals generated from white-screen videos without shapes differ significantly from those of the mixed-shape videos. The presence of multiple shape types in each frame introduced additional complexity, requiring the model to distinguish the overlapping neural responses.
+Test results showed that white-screen videos were classified with 100% recall, confirming the model’s ability to reliably detect the absence of structured visual information. Mixed-shape videos also achieved strong performance, with a recall of 80% and an F1-score of 76%, as summarized in Table 1. These findings suggest that while the neural response to complex visual stimuli introduces variability, the model was still able to extract distinguishing features from the speckle pattern data, likely leveraging shape-specific neural signals captured in previous tasks.
+
+#### 2.5 General Observations
+Before each recording session, the participants were shown a blank white screen to calibrate the session. This step ensured a stable baseline for neural activity assessment, minimizing variability in the speckle patterns caused by environmental factors or physiological fluctuations. The white-screen calibration also helped normalize the data, allowing for more accurate comparisons between shape-induced neural responses across different trials.
+We found that the overall model’s classification performance consistently favored polygonal shapes, particularly rectangles with the highest recall and F1-scores in both single-shape and multi-shape tasks. The model struggled with circles, as shown in the confusion matrix, Fig. 2, where circular stimuli were often misclassified or failed to produce distinct speckle pattern responses. This trend suggests a potential correlation between circles and the blank white screen condition, implying that non-polygonal shapes may not elicit strong neural responses in the primary visual cortex (V1). This could indicate that the visual system processes circles differently or that the absence of edges in circular stimuli results in a weaker speckle signal, resembling the neural response to the blank screen. Further investigation is needed to explore this potential link and to better understand how the brain encodes different geometric forms.
+The classification performance for mixed-shape and white-screen videos was notably high, indicating that the model effectively differentiated between the presence or absence of structured visual stimuli. However, the relatively poor performance on multi-triangle and multi-circle stimuli suggests that increased complexity in the neural response may reduce classification accuracy.
+These findings underscore the potential of laser speckle pattern imaging in sensing the neural dynamics related to shape recognition. However, further research is needed to refine classification models, improve sensitivity to non-polygonal shapes, and explore how neural processing of complex visual stimuli influences speckle pattern response. Future work should also investigate the role of higher-order visual processing mechanisms and their effect on the speckle patterns to enhance the robustness and interpretability of this approach.
+
 
 ## Citation
 
 If you use this code in your research, please cite:
 
 ```bibtex
-@article{visual_cortex_speckle_2024,
+@article{visual_cortex_speckle_2025,
   title={Visual Cortex Speckle Imaging for Shape Recognition},
   author={[Author Names]},
   journal={[Journal Name]},
@@ -530,4 +565,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Contact
 
-For questions and support, please contact [your-email@domain.com]
+For questions and support, please contact [zeevkal@biu.ac.il]
