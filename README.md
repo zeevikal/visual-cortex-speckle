@@ -340,9 +340,9 @@ Based on the published research results, you can expect the following performanc
   },
   "multi_shape_classification": {
     "multi_rectangle": {
-      "recall": 0.60,
+      "recall": 0.61,
       "f1_score": 0.71,
-      "precision_estimated": 0.86
+      "precision_estimated": 0.85
     },
     "multi_triangle": {
       "recall": 0.10,
@@ -357,9 +357,9 @@ Based on the published research results, you can expect the following performanc
   },
   "mixed_shape_classification": {
     "mixed_shapes": {
-      "recall": 0.80,
-      "f1_score": 0.76,
-      "precision_estimated": 0.73
+      "recall": 0.82,
+      "f1_score": 0.75,
+      "precision_estimated": 0.74
     },
     "white_screen": {
       "recall": 1.00,
