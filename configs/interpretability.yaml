@@ -1,0 +1,122 @@
+# Configuration for interpretability analysis of visual cortex speckle imaging models
+
+# Model configuration
+model:
+  model_type: "convlstm"
+  model_path: "checkpoints/best_model.pth"
+  num_classes: 3
+  hidden_size: 64
+  sequence_length: 64
+  dropout_rate: 0.1
+
+# Data configuration
+data:
+  pickle_path: "data/vis_cortex_data.pickle"
+  subjects: ["ZeevKal"]  # Update with your subjects
+  shape_filter: ["Circle", "Rectangle", "Triangle"]
+  feature_type: "manhattan"
+  batch_size: 32
+  test_size: 0.2
+
+# Class names
+class_names:
+  - "Circle"
+  - "Rectangle" 
+  - "Triangle"
+
+# SHAP analysis configuration
+shap:
+  enabled: true
+  background_size: 100      # Size of background dataset for SHAP
+  test_size: 50            # Number of test samples to analyze
+  save_plots: true
+  save_values: true
+  feature_selection:
+    top_k: 100             # Top K most important features to analyze
+    threshold: 0.01        # Minimum importance threshold
+
+# Temporal analysis configuration
+temporal:
+  enabled: true
+  sequence_length: 64
+  max_samples_per_class: 100
+  clustering:
+    n_clusters: 5
+    use_pca: true
+    n_components: 50
+  visualization:
+    use_tsne: true
+    use_umap: true
+    perplexity: 30
+
+# Spatial cortical mapping configuration
+spatial:
+  enabled: true
+  cortical_regions:
+    V1_edge_detectors:
+      start: 0
+      end: 1024
+      description: "Early edge detection and basic feature processing"
+    V1_orientation_columns:
+      start: 1024
+      end: 2048
+      description: "Orientation-selective processing columns"
+    V1_spatial_frequency:
+      start: 2048
+      end: 3072
+      description: "Spatial frequency analysis and filtering"
+    V1_higher_order:
+      start: 3072
+      end: 4096
+      description: "Higher-order integration and complex pattern processing"
+  connectivity:
+    correlation_threshold: 0.1
+    max_samples_per_class: 50
+
+# Visualization configuration
+visualization:
+  save_dir: "results/interpretability_analysis"
+  dpi: 300
+  figsize: [15, 10]
+  color_palette: "viridis"
+  save_formats: ["png", "pdf"]
+  
+# Report configuration
+report:
+  generate_markdown: true
+  generate_html: true
+  include_code_snippets: true
+  include_validation_checks: true
+  
+# Advanced analysis options
+advanced:
+  gradient_analysis:
+    enabled: true
+    methods: ["integrated_gradients", "gradient_shap", "deep_lift"]
+    n_steps: 50
+  
+  occlusion_analysis:
+    enabled: true
+    window_size: 64
+    stride: 32
+    
+  layer_analysis:
+    enabled: true
+    target_layers: ["convlstm", "classifier"]
+    
+  cross_validation:
+    enabled: false
+    n_folds: 5
+    
+# Hardware configuration
+hardware:
+  device: "auto"  # auto, cuda, cpu
+  num_workers: 4
+  pin_memory: true
+  
+# Debugging and logging
+debug:
+  verbose: true
+  log_level: "INFO"
+  save_intermediate_results: true
+  check_memory_usage: true

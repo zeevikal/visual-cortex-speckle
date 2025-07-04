@@ -200,3 +200,28 @@ info: ## Show project information
 	@echo "- Custom shape patterns"
 	@echo ""
 	@echo "For more information, see README.md and USAGE.md"
+
+# Interpretability and explainability analysis
+interpretability: ## Run comprehensive interpretability analysis (SHAP, cortical mapping)
+	$(PYTHON) examples/interpretability_analysis.py
+
+interpret-shap: ## Run SHAP analysis only
+	$(PYTHON) -c "
+	from examples.interpretability_analysis import main
+	import sys
+	sys.argv = ['interpretability_analysis.py', '--shap-only']
+	main()
+	"
+
+interpret-notebook: ## Launch interpretability analysis Jupyter notebook
+	jupyter notebook notebooks/interpretability_analysis.ipynb
+
+interpret-custom: ## Run interpretability with custom config (usage: make interpret-custom CONFIG=configs/interpretability.yaml)
+	$(PYTHON) examples/interpretability_analysis.py \
+		$(if $(CONFIG),--config $(CONFIG)) \
+		$(if $(MODEL_PATH),--model_path $(MODEL_PATH)) \
+		$(if $(SAVE_DIR),--save_dir $(SAVE_DIR))
+
+install-interpretability: ## Install interpretability dependencies (SHAP, Captum, etc.)
+	$(PIP) install shap captum lime umap-learn networkx plotly
+	@echo "Interpretability packages installed successfully!"

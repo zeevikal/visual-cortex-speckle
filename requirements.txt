@@ -15,3 +15,13 @@ click>=8.0.0
 pytest>=6.2.0
 jupyter>=1.0.0
 ipywidgets>=7.6.0
+
+# Interpretability and explainability tools
+shap>=0.41.0
+captum>=0.6.0
+lime>=0.2.0.1
+
+# Additional scientific computing
+umap-learn>=0.5.0
+networkx>=2.8.0
+plotly>=5.0.0

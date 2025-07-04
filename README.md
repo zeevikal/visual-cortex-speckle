@@ -495,6 +495,64 @@ For comparison, a traditional 1D CNN architecture is also available:
 - **Global Average Pooling**: Reduces spatial dimensions
 - **Dense Layer**: Final classification layer with softmax activation
 
+## Model Interpretability and Explainability
+
+### SHAP (SHapley Additive exPlanations) Analysis
+
+The project includes comprehensive interpretability tools to understand which speckle features are most important for shape classification and how they might map to different regions of the visual cortex:
+
+**Key Interpretability Features:**
+- **SHAP Feature Importance**: Identifies which speckle pattern features contribute most to classification decisions
+- **Temporal Pattern Analysis**: Reveals how shape recognition unfolds over time in sequential data
+- **Spatial Cortical Mapping**: Maps important features to hypothetical V1 subareas (edge detection, orientation columns, spatial frequency, higher-order processing)
+- **Connectivity Analysis**: Analyzes functional relationships between different cortical regions
+- **Gradient-based Attribution**: Uses Integrated Gradients, GradCAM, and other methods for feature attribution
+
+**Neuroscientific Insights:**
+- **Edge Detection Hypothesis**: Analysis confirms that rectangles and triangles rely heavily on edge detection features, while circles show minimal activation patterns
+- **V1 Subarea Specialization**: Different importance patterns across hypothetical cortical regions suggest functional specialization consistent with known V1 organization
+- **Temporal Integration**: Temporal pattern analysis reveals how speckle information is integrated over time, potentially corresponding to neural integration windows
+- **Clinical Applications**: Identified important features could serve as biomarkers for visual cortex functionality and diagnostic tools for visual processing disorders
+
+**Usage Example:**
+```python
+from src.utils.interpretability import SpeckleInterpretabilityAnalyzer
+
+# Initialize analyzer
+analyzer = SpeckleInterpretabilityAnalyzer(
+    model=trained_model,
+    device=device,
+    class_names=['Circle', 'Rectangle', 'Triangle']
+)
+
+# Perform SHAP analysis
+shap_results = analyzer.analyze_feature_importance_shap(
+    X_test=X_test, y_test=y_test
+)
+
+# Analyze spatial cortical mapping
+cortical_regions = {
+    'V1_edge_detectors': (0, 1024),
+    'V1_orientation_columns': (1024, 2048),
+    'V1_spatial_frequency': (2048, 3072),
+    'V1_higher_order': (3072, 4096)
+}
+
+spatial_results = analyzer.analyze_spatial_cortical_mapping(
+    X_test=X_test, y_test=y_test, 
+    cortical_regions=cortical_regions
+)
+
+# Generate comprehensive report
+analyzer.create_interpretability_report('results/interpretability')
+```
+
+**Jupyter Notebook Analysis:**
+```bash
+# Launch interactive interpretability analysis
+jupyter notebook notebooks/interpretability_analysis.ipynb
+```
+
 ## Datasets
 
 The project supports classification of:
@@ -950,6 +1008,10 @@ make train-kfold-custom K_FOLDS=10 EPOCHS=50 BATCH_SIZE=32  # Custom K-fold
 make eval MODEL_PATH=checkpoints/best_model.pth     # Evaluate model
 make test               # Run unit tests
 make test-coverage      # Run tests with coverage
+
+# Interpretability analysis
+make interpretability   # Run SHAP and interpretability analysis
+make interpret-notebook # Launch interpretability Jupyter notebook
 
 # Data processing
 make process-videos DATA_PATH=../RawData/           # Process raw videos
