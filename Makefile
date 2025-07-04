@@ -29,6 +29,22 @@ train: ## Train model with default configuration
 train-basic: ## Train model on basic shapes (Circle, Rectangle, Triangle)
 	$(PYTHON) src/main.py --mode train --config configs/basic_shapes.yaml
 
+train-kfold: ## Train model with K-fold cross-validation
+	$(PYTHON) src/main.py --mode train_kfold --config configs/kfold_convlstm.yaml
+
+train-kfold-basic: ## Train model with K-fold cross-validation on basic shapes
+	$(PYTHON) src/main.py --mode train_kfold --config configs/kfold_basic_shapes.yaml
+
+train-kfold-custom: ## Train with K-fold and custom parameters (usage: make train-kfold-custom K_FOLDS=10 EPOCHS=50)
+	$(PYTHON) src/main.py --mode train_kfold \
+		$(if $(K_FOLDS),--k_folds $(K_FOLDS)) \
+		$(if $(EPOCHS),--epochs $(EPOCHS)) \
+		$(if $(BATCH_SIZE),--batch_size $(BATCH_SIZE)) \
+		$(if $(LR),--learning_rate $(LR)) \
+		$(if $(SUBJECTS),--subjects $(SUBJECTS)) \
+		$(if $(SHAPES),--shapes $(SHAPES)) \
+		$(if $(STRATIFIED),--kfold_stratified)
+
 train-custom: ## Train with custom parameters (usage: make train-custom EPOCHS=100 BATCH_SIZE=64)
 	$(PYTHON) src/main.py --mode train \
 		$(if $(EPOCHS),--epochs $(EPOCHS)) \
@@ -99,6 +115,36 @@ quickstart: ## Quick start: setup + train basic shapes
 	$(MAKE) setup
 	@echo "Starting training on basic shapes..."
 	$(MAKE) train-basic
+
+quickstart-kfold: ## Quick start: setup + K-fold training on basic shapes
+	$(MAKE) setup
+	@echo "Starting K-fold cross-validation on basic shapes..."
+	$(MAKE) train-kfold-basic
+
+# Testing K-fold functionality
+test-kfold: ## Test K-fold cross-validation functionality
+	$(PYTHON) test_kfold.py
+
+# Examples and help
+examples-kfold: ## Show K-fold training examples
+	@echo "K-fold Cross-Validation Examples:"
+	@echo "================================="
+	@echo ""
+	@echo "Basic K-fold training:"
+	@echo "  make train-kfold"
+	@echo "  make train-kfold-basic"
+	@echo ""
+	@echo "Custom K-fold parameters:"
+	@echo "  make train-kfold-custom K_FOLDS=10 EPOCHS=50 BATCH_SIZE=32"
+	@echo ""
+	@echo "K-fold with specific subjects/shapes:"
+	@echo "  python src/main.py --mode train_kfold --subjects ZeevKal --shapes Circle Rectangle Triangle --k_folds 5"
+	@echo ""
+	@echo "Evaluate K-fold best model:"
+	@echo "  make eval MODEL_PATH=checkpoints/best_kfold_model.pth"
+	@echo ""
+	@echo "Test K-fold functionality:"
+	@echo "  make test-kfold"
 
 # Docker commands (if using Docker)
 docker-build: ## Build Docker image

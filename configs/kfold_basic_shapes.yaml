@@ -1,0 +1,61 @@
+# K-fold Cross-Validation Configuration for Basic Shapes
+
+# Data Configuration
+data:
+  root_path: "../RawData/"
+  pickle_path: "../Data/vis_cortex_data.pickle"
+  subjects: ["ZeevKal"]  # Focus on one subject for testing
+  shape_filter: ["Circle", "Rectangle", "Triangle"]  # Basic shapes only
+  feature_type: "manhattan"
+  train_size: 0.8
+  n_chunks: 10
+  frames_limit: 20000
+
+# Model Configuration
+model:
+  model_type: "conv1d"  # Simpler model for faster K-fold
+  num_classes: 3
+  input_channels: 1
+  num_filters: 32
+  kernel_size: 3
+  dropout_rate: 0.1
+
+# Training Configuration
+training:
+  batch_size: 64
+  epochs: 50  # Reduced for faster K-fold
+  learning_rate: 0.001
+  optimizer: "adam"
+  scheduler: "plateau"
+  validation_split: 0.0
+  early_stopping_patience: 10
+  save_every: 20
+  save_best: true
+  
+  # K-fold Cross-Validation Parameters
+  use_kfold: true
+  k_folds: 5
+  kfold_stratified: true
+  kfold_random_state: 42
+
+# Scheduler Configuration
+scheduler:
+  mode: "min"
+  factor: 0.5
+  patience: 5
+  min_lr: 0.0001
+  verbose: true
+
+# Paths
+save_dir: "checkpoints"
+log_dir: "logs"
+results_dir: "results"
+
+# Device
+device: "auto"
+
+# Random seed
+seed: 42
+
+# Logging
+verbose: true

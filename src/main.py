@@ -8,7 +8,10 @@ import argparse
 import torch
 import numpy as np
 import random
+import pickle
 from typing import Optional
+from dataclasses import asdict
+import json
 
 # Add the src directory to the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -17,7 +20,7 @@ from data.dataset import create_data_loaders_from_pickle
 from models.base_model import ModelFactory
 from training.trainer import Trainer
 from training.evaluation import ModelEvaluator
-from utils.config import load_config, get_default_config, create_config_templates, print_config
+from utils.config import load_config, get_default_config, print_config
 from utils.visualization import create_visualization_report
 
 
@@ -236,11 +239,122 @@ def evaluate_model(config, model_path: str):
     print("Evaluation completed!")
 
 
+def train_model_kfold(config):
+    """Train a model using K-fold cross-validation."""
+    print("Starting K-fold cross-validation training...")
+    print_config(config)
+    
+    # Set seed for reproducibility
+    set_seed(config.seed)
+    
+    # Get device
+    device = get_device(config.device)
+    print(f"Using device: {device}")
+    
+    # Create full dataset (without train/val split)
+    print("Loading data...")
+    from .data.preprocessing import prepare_dataset_splits
+    from .data.dataset import SpeckleDataset
+    
+    # Load speckle data
+    with open(config.data.pickle_path, 'rb') as f:
+        speckle_data = pickle.load(f)
+    
+    # Prepare full dataset (we'll split it in K-fold)
+    x_full, y_full, _, _ = prepare_dataset_splits(
+        speckle_data=speckle_data,
+        train_size=1.0,  # Use all data for K-fold
+        n_chunks=config.data.n_chunks,
+        subjects=config.data.subjects,
+        shape_filter=config.data.shape_filter,
+        feature_type=config.data.feature_type
+    )
+    
+    # Create dataset
+    from sklearn.preprocessing import LabelEncoder
+    label_encoder = LabelEncoder()
+    y_encoded = label_encoder.fit_transform(y_full)
+    
+    full_dataset = SpeckleDataset(x_full, y_encoded)
+    class_names = label_encoder.classes_.tolist()
+    
+    print(f"Full dataset size: {len(full_dataset)}")
+    print(f"Number of classes: {len(class_names)}")
+    print(f"Class names: {class_names}")
+    
+    # Update number of classes in config
+    config.model.num_classes = len(class_names)
+    
+    # Create K-fold trainer
+    from .training.kfold_trainer import KFoldTrainer
+    
+    kfold_trainer = KFoldTrainer(
+        model_config=config.model.__dict__,
+        training_config=config.training.__dict__,
+        device=device,
+        save_dir=os.path.join(config.save_dir, 'kfold'),
+        log_dir=os.path.join(config.log_dir, 'kfold') if config.log_dir else None,
+        stratified=config.training.kfold_stratified,
+        verbose=config.verbose
+    )
+    
+    # Perform K-fold cross-validation
+    cv_results = kfold_trainer.train_kfold(
+        dataset=full_dataset,
+        class_names=class_names,
+        k_folds=config.training.k_folds,
+        random_state=config.training.kfold_random_state
+    )
+    
+    # Save best model
+    best_model_path = os.path.join(config.save_dir, 'best_kfold_model.pth')
+    kfold_trainer.save_best_model(best_model_path)
+    
+    # Create comprehensive results summary
+    results_summary = {
+        'config': config.__dict__,
+        'cv_results': cv_results,
+        'best_model_path': best_model_path,
+        'class_names': class_names
+    }
+    
+    # Save results summary
+    summary_path = os.path.join(config.results_dir, 'kfold_training_summary.json')
+    with open(summary_path, 'w') as f:
+        # Convert to JSON-serializable format
+        json_summary = {}
+        for key, value in results_summary.items():
+            if key == 'config':
+                json_summary[key] = asdict(value)
+            elif key == 'cv_results':
+                # Skip complex nested structures
+                json_summary[key] = {
+                    'accuracy_mean': value['accuracy']['mean'],
+                    'accuracy_std': value['accuracy']['std'],
+                    'precision_mean': value['precision']['mean'],
+                    'precision_std': value['precision']['std'],
+                    'recall_mean': value['recall']['mean'],
+                    'recall_std': value['recall']['std'],
+                    'f1_score_mean': value['f1_score']['mean'],
+                    'f1_score_std': value['f1_score']['std']
+                }
+            else:
+                json_summary[key] = value
+        json.dump(json_summary, f, indent=2)
+    
+    print(f"\nK-fold training completed!")
+    print(f"Results saved to: {config.save_dir}")
+    print(f"Best model saved to: {best_model_path}")
+    print(f"Summary saved to: {summary_path}")
+    
+    return kfold_trainer, cv_results
+
+
 def main():
     """Main function."""
     parser = argparse.ArgumentParser(description="Visual Cortex Speckle Recognition")
     parser.add_argument("--config", type=str, help="Path to configuration file")
-    parser.add_argument("--mode", type=str, choices=["train", "eval", "create_configs"], 
+    parser.add_argument("--mode", type=str, choices=["train", "train_kfold", "eval", "create_configs"], 
                        default="train", help="Mode to run")
     parser.add_argument("--model_path", type=str, help="Path to trained model (for evaluation)")
     
@@ -251,6 +365,11 @@ def main():
     parser.add_argument("--subjects", type=str, nargs="+", help="Subjects to include")
     parser.add_argument("--shapes", type=str, nargs="+", help="Shapes to include")
     parser.add_argument("--feature_type", type=str, help="Feature type to use")
+    
+    # K-fold cross-validation arguments
+    parser.add_argument("--k_folds", type=int, help="Number of K-folds for cross-validation")
+    parser.add_argument("--kfold_stratified", action="store_true", help="Use stratified K-fold")
+    parser.add_argument("--kfold_random_state", type=int, help="Random state for K-fold")
     
     args = parser.parse_args()
     
@@ -279,6 +398,14 @@ def main():
     if args.feature_type:
         config.data.feature_type = args.feature_type
     
+    # K-fold specific overrides
+    if args.k_folds:
+        config.training.k_folds = args.k_folds
+    if args.kfold_stratified:
+        config.training.kfold_stratified = args.kfold_stratified
+    if args.kfold_random_state:
+        config.training.kfold_random_state = args.kfold_random_state
+    
     # Create directories
     os.makedirs(config.save_dir, exist_ok=True)
     os.makedirs(config.results_dir, exist_ok=True)
@@ -287,7 +414,13 @@ def main():
     
     # Run mode
     if args.mode == "train":
-        train_model(config)
+        if config.training.use_kfold:
+            print("K-fold cross-validation enabled in config. Using K-fold training.")
+            train_model_kfold(config)
+        else:
+            train_model(config)
+    elif args.mode == "train_kfold":
+        train_model_kfold(config)
     elif args.mode == "eval":
         if not args.model_path:
             parser.error("--model_path is required for evaluation mode")

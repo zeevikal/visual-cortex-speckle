@@ -87,7 +87,24 @@ python src/main.py --mode train --config configs/convlstm.yaml
 make train
 ```
 
-### 3. Training with Command Line Overrides
+### 3. K-fold Cross-Validation Training
+
+```bash
+# Train with K-fold cross-validation (ConvLSTM)
+python src/main.py --mode train_kfold --config configs/kfold_convlstm.yaml
+
+# Train with K-fold cross-validation (basic shapes)
+python src/main.py --mode train_kfold --config configs/kfold_basic_shapes.yaml
+
+# Quick start with make
+make train-kfold
+make train-kfold-basic
+
+# Custom K-fold parameters
+make train-kfold-custom K_FOLDS=10 EPOCHS=50 BATCH_SIZE=32
+```
+
+### 4. Training with Command Line Overrides
 
 ```bash
 # Override specific parameters
@@ -97,11 +114,18 @@ python src/main.py --mode train \
     --batch_size 64 \
     --learning_rate 0.001
 
+# K-fold with overrides
+python src/main.py --mode train_kfold \
+    --config configs/kfold_convlstm.yaml \
+    --k_folds 10 \
+    --epochs 30 \
+    --kfold_stratified
+
 # Use make with custom parameters
 make train-custom EPOCHS=50 BATCH_SIZE=64 LR=0.001
 ```
 
-### 4. Data-specific Training
+### 5. Data-specific Training
 
 ```bash
 # Train on specific subjects and shapes
@@ -109,6 +133,13 @@ python src/main.py --mode train \
     --subjects ZeevKal Yevgeny \
     --shapes Circle Rectangle Triangle \
     --feature_type manhattan
+
+# K-fold on specific data
+python src/main.py --mode train_kfold \
+    --subjects ZeevKal \
+    --shapes Circle Rectangle Triangle \
+    --feature_type euclidean \
+    --k_folds 5
 
 # Train on multi-shapes
 python src/main.py --mode train \
@@ -120,7 +151,7 @@ python src/main.py --mode train \
 make train-basic
 ```
 
-### 5. Model Evaluation
+### 6. Model Evaluation
 
 ```bash
 # Evaluate a trained model
@@ -128,8 +159,229 @@ python src/main.py --mode eval \
     --model_path checkpoints/best_model.pth \
     --config configs/convlstm.yaml
 
+# Evaluate K-fold best model
+python src/main.py --mode eval \
+    --model_path checkpoints/best_kfold_model.pth \
+    --config configs/kfold_convlstm.yaml
+
 # Use make for evaluation
 make eval MODEL_PATH=checkpoints/best_model.pth
+```
+
+## K-fold Cross-Validation
+
+### Overview
+
+K-fold cross-validation is a robust technique for evaluating model performance and generalization. The implementation provides comprehensive cross-validation capabilities with detailed result analysis and visualization.
+
+### When to Use K-fold Cross-Validation
+
+**Recommended for:**
+- **Small to Medium Datasets**: When you have limited data and want to maximize training/validation splits
+- **Model Selection**: Comparing different architectures or hyperparameters
+- **Performance Estimation**: Getting robust estimates of model performance with confidence intervals
+- **Research & Publication**: When you need statistically rigorous performance evaluation
+- **Hyperparameter Tuning**: Finding optimal parameters across multiple data splits
+
+**Consider Regular Training for:**
+- **Large Datasets**: When you have abundant data and computational resources are limited
+- **Quick Prototyping**: When you need fast iterations during development
+- **Production Models**: When you have a fixed train/validation/test split strategy
+
+### Key Features
+
+- **Stratified K-fold**: Maintains class distribution across folds
+- **Comprehensive Metrics**: Per-fold and average performance metrics
+- **Visualization**: Training curves, performance distributions, and result summaries
+- **Best Model Selection**: Automatic selection and saving of best performing model
+- **Detailed Reporting**: CSV exports, JSON summaries, and visual reports
+
+### Configuration
+
+Enable K-fold cross-validation in your configuration file:
+
+```yaml
+training:
+  use_kfold: true
+  k_folds: 5
+  kfold_stratified: true
+  kfold_random_state: 42
+```
+
+### Usage Examples
+
+#### Basic K-fold Training
+
+```bash
+# Train with predefined K-fold configuration
+python src/main.py --mode train_kfold --config configs/kfold_convlstm.yaml
+
+# Or use make
+make train-kfold
+```
+
+#### Custom K-fold Parameters
+
+```bash
+# Custom number of folds
+python src/main.py --mode train_kfold --k_folds 10
+
+# Non-stratified K-fold
+python src/main.py --mode train_kfold --k_folds 5
+
+# With custom training parameters
+python src/main.py --mode train_kfold \
+    --k_folds 10 \
+    --epochs 30 \
+    --batch_size 64 \
+    --learning_rate 0.001 \
+    --kfold_stratified
+```
+
+#### Make Commands
+
+```bash
+# Basic K-fold training
+make train-kfold                    # ConvLSTM model
+make train-kfold-basic             # Basic shapes with Conv1D
+
+# Custom K-fold training
+make train-kfold-custom K_FOLDS=10 EPOCHS=50 BATCH_SIZE=32
+```
+
+### Python API Usage
+
+```python
+from src.training.kfold_trainer import KFoldTrainer
+from src.data.dataset import SpeckleDataset
+
+# Create K-fold trainer
+kfold_trainer = KFoldTrainer(
+    model_config={
+        'model_type': 'convlstm',
+        'num_classes': 3,
+        'hidden_size': 64,
+        'sequence_length': 64
+    },
+    training_config={
+        'batch_size': 32,
+        'epochs': 100,
+        'learning_rate': 0.001,
+        'early_stopping_patience': 20
+    },
+    device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+    save_dir='kfold_results',
+    stratified=True
+)
+
+# Perform K-fold cross-validation
+cv_results = kfold_trainer.train_kfold(
+    dataset=your_dataset,
+    class_names=['Circle', 'Rectangle', 'Triangle'],
+    k_folds=5,
+    random_state=42
+)
+
+# Get best model
+best_model, best_fold_idx = kfold_trainer.get_best_model()
+
+# Save best model
+kfold_trainer.save_best_model('best_kfold_model.pth')
+```
+
+### Results Structure
+
+After K-fold training, the following results are generated:
+
+```
+checkpoints/kfold/
+├── fold_1/
+│   ├── best_model.pth
+│   ├── fold_1_validation_confusion_matrix.png
+│   ├── fold_1_validation_classification_report.csv
+│   └── fold_1_training_history.png
+├── fold_2/
+│   └── ...
+├── fold_N/
+│   └── ...
+├── kfold_summary.json              # Summary statistics
+├── kfold_metrics.csv               # Detailed metrics per fold
+├── kfold_per_class_metrics.csv     # Per-class performance
+├── kfold_results_visualization.png  # Performance visualization
+└── kfold_training_history.png      # Training curves comparison
+```
+
+### Results Interpretation
+
+#### Summary Statistics
+
+```json
+{
+  "accuracy": {
+    "mean": 0.8245,
+    "std": 0.0312,
+    "min": 0.7891,
+    "max": 0.8567
+  },
+  "precision": {
+    "mean": 0.8156,
+    "std": 0.0289,
+    "min": 0.7823,
+    "max": 0.8456
+  }
+}
+```
+
+#### Per-Class Metrics
+
+```csv
+class,metric,mean,std
+Circle,precision,0.7234,0.0456
+Circle,recall,0.6789,0.0523
+Circle,f1-score,0.7001,0.0489
+Rectangle,precision,0.8956,0.0234
+Rectangle,recall,0.9123,0.0198
+Rectangle,f1-score,0.9038,0.0216
+```
+
+### Visualization
+
+The K-fold implementation generates comprehensive visualizations:
+
+1. **Performance Distribution**: Box plots showing metric distributions across folds
+2. **Fold Comparison**: Bar charts comparing performance across individual folds
+3. **Training Curves**: Overlay of training/validation curves from all folds
+4. **Confusion Matrices**: Per-fold confusion matrices for detailed analysis
+
+### Best Practices
+
+1. **Stratified K-fold**: Always use stratified K-fold for classification tasks
+2. **Appropriate K**: Use K=5 or K=10 for most datasets
+3. **Epochs**: Reduce epochs per fold (50-100) since training happens K times
+4. **Early Stopping**: Use aggressive early stopping to prevent overfitting
+5. **Resource Management**: Monitor GPU memory usage with multiple folds
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **Memory Issues**: Reduce batch size or use CPU for large datasets
+2. **Long Training Time**: Reduce epochs, use simpler models, or fewer folds
+3. **Imbalanced Classes**: Ensure stratified=True for proper class distribution
+
+#### Performance Tips
+
+```bash
+# Faster K-fold with smaller model
+python src/main.py --mode train_kfold \
+    --config configs/kfold_basic_shapes.yaml \
+    --k_folds 3 \
+    --epochs 25
+
+# Memory-efficient K-fold
+python src/main.py --mode train_kfold \
+    --batch_size 16 \
+    --k_folds 5
 ```
 
 ## Model Architecture
@@ -334,6 +586,73 @@ create_visualization_report(
 
 ## Advanced Usage
 
+### K-fold Cross-Validation with Custom Models
+
+```python
+from src.training.kfold_trainer import KFoldTrainer
+from src.models.base_model import ModelFactory
+from src.data.dataset import SpeckleDataset
+import torch
+
+# Create custom model configuration
+custom_model_config = {
+    'model_type': 'convlstm',
+    'num_classes': 3,
+    'hidden_size': 128,
+    'sequence_length': 64,
+    'kernel_size': 5,
+    'dropout_rate': 0.2,
+    'num_layers': 2
+}
+
+# Training configuration for K-fold
+training_config = {
+    'batch_size': 32,
+    'epochs': 50,
+    'learning_rate': 0.0005,
+    'optimizer': 'adam',
+    'scheduler': 'plateau',
+    'early_stopping_patience': 15,
+    'save_every': 25,
+    'save_best': True
+}
+
+# Create K-fold trainer
+kfold_trainer = KFoldTrainer(
+    model_config=custom_model_config,
+    training_config=training_config,
+    device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+    save_dir='custom_kfold_results',
+    log_dir='custom_kfold_logs',
+    stratified=True,
+    verbose=True
+)
+
+# Perform K-fold cross-validation
+cv_results = kfold_trainer.train_kfold(
+    dataset=your_dataset,
+    class_names=['Circle', 'Rectangle', 'Triangle'],
+    k_folds=10,
+    random_state=42
+)
+
+# Analyze results
+print(f"Mean Accuracy: {cv_results['accuracy']['mean']:.4f} ± {cv_results['accuracy']['std']:.4f}")
+print(f"Best Fold Accuracy: {cv_results['accuracy']['max']:.4f}")
+print(f"Worst Fold Accuracy: {cv_results['accuracy']['min']:.4f}")
+
+# Get best model and save it
+best_model, best_fold = kfold_trainer.get_best_model()
+kfold_trainer.save_best_model('best_custom_kfold_model.pth')
+
+# Per-class analysis
+if 'per_class_metrics' in cv_results:
+    for class_name, metrics in cv_results['per_class_metrics'].items():
+        print(f"\n{class_name}:")
+        for metric, stats in metrics.items():
+            print(f"  {metric}: {stats['mean']:.4f} ± {stats['std']:.4f}")
+```
+
 ### Custom ConvLSTM Architecture
 
 ```python
@@ -414,6 +733,95 @@ print(f"Best accuracy: {best_accuracy}")
 print(f"Best parameters: {best_params}")
 ```
 
+### K-fold Hyperparameter Search
+
+```python
+import itertools
+from src.training.kfold_trainer import KFoldTrainer
+from src.utils.config import get_default_config
+
+# Define hyperparameter grid for K-fold ConvLSTM search
+param_grid = {
+    'learning_rate': [0.001, 0.0005, 0.0001],
+    'batch_size': [32, 64],
+    'hidden_size': [32, 64, 128],
+    'dropout_rate': [0.1, 0.2, 0.3],
+    'k_folds': [5, 10]
+}
+
+best_cv_accuracy = 0
+best_params = None
+search_results = []
+
+for params in itertools.product(*param_grid.values()):
+    param_dict = dict(zip(param_grid.keys(), params))
+    
+    # Create model config
+    model_config = {
+        'model_type': 'convlstm',
+        'num_classes': 3,
+        'hidden_size': param_dict['hidden_size'],
+        'dropout_rate': param_dict['dropout_rate'],
+        'sequence_length': 64
+    }
+    
+    # Create training config
+    training_config = {
+        'batch_size': param_dict['batch_size'],
+        'epochs': 30,  # Reduced for grid search
+        'learning_rate': param_dict['learning_rate'],
+        'optimizer': 'adam',
+        'early_stopping_patience': 10
+    }
+    
+    # Create K-fold trainer
+    kfold_trainer = KFoldTrainer(
+        model_config=model_config,
+        training_config=training_config,
+        save_dir=f"grid_search/{'-'.join([f'{k}_{v}' for k, v in param_dict.items()])}",
+        verbose=False  # Reduce output for grid search
+    )
+    
+    # Perform K-fold CV
+    cv_results = kfold_trainer.train_kfold(
+        dataset=your_dataset,
+        k_folds=param_dict['k_folds'],
+        random_state=42
+    )
+    
+    # Store results
+    mean_accuracy = cv_results['accuracy']['mean']
+    std_accuracy = cv_results['accuracy']['std']
+    
+    search_results.append({
+        'params': param_dict,
+        'mean_accuracy': mean_accuracy,
+        'std_accuracy': std_accuracy,
+        'score': mean_accuracy - std_accuracy  # Penalize high variance
+    })
+    
+    # Track best parameters
+    if mean_accuracy > best_cv_accuracy:
+        best_cv_accuracy = mean_accuracy
+        best_params = param_dict
+    
+    print(f"Params: {param_dict}")
+    print(f"CV Accuracy: {mean_accuracy:.4f} ± {std_accuracy:.4f}")
+    print("-" * 50)
+
+# Sort results by score
+search_results.sort(key=lambda x: x['score'], reverse=True)
+
+print("Top 5 parameter combinations:")
+for i, result in enumerate(search_results[:5]):
+    print(f"{i+1}. {result['params']}")
+    print(f"   Accuracy: {result['mean_accuracy']:.4f} ± {result['std_accuracy']:.4f}")
+    print(f"   Score: {result['score']:.4f}")
+
+print(f"\nBest CV accuracy: {best_cv_accuracy:.4f}")
+print(f"Best parameters: {best_params}")
+```
+
 ## Configuration Reference
 
 ### Data Configuration
@@ -461,6 +869,11 @@ make train              # Train with default ConvLSTM configuration
 make train-basic        # Train on basic shapes
 make train-custom EPOCHS=50 BATCH_SIZE=64 LR=0.001  # Custom parameters
 
+# K-fold cross-validation training
+make train-kfold        # K-fold with ConvLSTM model
+make train-kfold-basic  # K-fold with basic shapes (Conv1D)
+make train-kfold-custom K_FOLDS=10 EPOCHS=50 BATCH_SIZE=32  # Custom K-fold
+
 # Evaluation and testing
 make eval MODEL_PATH=checkpoints/best_model.pth     # Evaluate model
 make test               # Run unit tests
@@ -486,13 +899,34 @@ visual-cortex-speckle/
 ├── checkpoints/
 │   ├── best_model.pth           # Best ConvLSTM model
 │   ├── final_model.pth          # Final training state
-│   └── checkpoint_epoch_*.pth   # Periodic checkpoints
+│   ├── best_kfold_model.pth     # Best K-fold model
+│   ├── checkpoint_epoch_*.pth   # Periodic checkpoints
+│   └── kfold/                   # K-fold results
+│       ├── fold_1/
+│       │   ├── best_model.pth
+│       │   ├── fold_1_validation_confusion_matrix.png
+│       │   ├── fold_1_validation_classification_report.csv
+│       │   └── fold_1_training_history.png
+│       ├── fold_2/
+│       │   └── ...
+│       ├── fold_N/
+│       │   └── ...
+│       ├── kfold_summary.json
+│       ├── kfold_metrics.csv
+│       ├── kfold_per_class_metrics.csv
+│       ├── kfold_results_visualization.png
+│       └── kfold_training_history.png
 ├── logs/
-│   └── tensorboard_logs/        # TensorBoard training logs
+│   ├── tensorboard_logs/        # TensorBoard training logs
+│   └── kfold/                   # K-fold tensorboard logs
+│       ├── fold_1/
+│       ├── fold_2/
+│       └── ...
 ├── results/
 │   ├── test_classification_report.csv
 │   ├── test_confusion_matrix.png
 │   ├── test_analysis.json
+│   ├── kfold_training_summary.json
 │   └── visualizations/
 │       ├── training_history.png
 │       ├── sample_patterns.png

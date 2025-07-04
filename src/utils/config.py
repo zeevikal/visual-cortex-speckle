@@ -44,6 +44,12 @@ class TrainingConfig:
     early_stopping_patience: int = 100
     save_every: int = 50
     save_best: bool = True
+    
+    # K-fold cross-validation parameters
+    use_kfold: bool = False
+    k_folds: int = 5
+    kfold_stratified: bool = True
+    kfold_random_state: int = 42
 
 
 @dataclass
@@ -247,6 +253,10 @@ def print_config(config: Config):
     print(f"  Scheduler: {config.training.scheduler}")
     print(f"  Validation Split: {config.training.validation_split}")
     print(f"  Early Stopping Patience: {config.training.early_stopping_patience}")
+    print(f"  Use K-Fold: {config.training.use_kfold}")
+    print(f"  K-Folds: {config.training.k_folds}")
+    print(f"  Stratified K-Fold: {config.training.kfold_stratified}")
+    print(f"  K-Fold Random State: {config.training.kfold_random_state}")
     
     print("\nPaths:")
     print(f"  Save Directory: {config.save_dir}")
