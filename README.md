@@ -313,36 +313,108 @@ checkpoints/kfold/
 
 ### Results Interpretation
 
-#### Summary Statistics
+The K-fold cross-validation results should be interpreted in the context of the published research findings. Based on the experimental results shown in Table 1, the visual cortex speckle imaging technique demonstrates varying performance across different shape categories and experimental conditions.
+
+#### Expected Performance Ranges
+
+Based on the published research results, you can expect the following performance ranges when using K-fold cross-validation:
 
 ```json
 {
-  "accuracy": {
-    "mean": 0.8245,
-    "std": 0.0312,
-    "min": 0.7891,
-    "max": 0.8567
+  "single_shape_classification": {
+    "rectangle": {
+      "recall": 1.00,
+      "f1_score": 0.77,
+      "precision_estimated": 0.62
+    },
+    "triangle": {
+      "recall": 0.90,
+      "f1_score": 0.69,
+      "precision_estimated": 0.56
+    },
+    "circle": {
+      "recall": 0.00,
+      "f1_score": 0.00,
+      "precision_estimated": 0.00
+    }
   },
-  "precision": {
-    "mean": 0.8156,
-    "std": 0.0289,
-    "min": 0.7823,
-    "max": 0.8456
+  "multi_shape_classification": {
+    "multi_rectangle": {
+      "recall": 0.60,
+      "f1_score": 0.71,
+      "precision_estimated": 0.86
+    },
+    "multi_triangle": {
+      "recall": 0.10,
+      "f1_score": "low",
+      "precision_estimated": "variable"
+    },
+    "multi_circle": {
+      "recall": 0.00,
+      "f1_score": 0.00,
+      "precision_estimated": 0.00
+    }
+  },
+  "mixed_shape_classification": {
+    "mixed_shapes": {
+      "recall": 0.80,
+      "f1_score": 0.76,
+      "precision_estimated": 0.73
+    },
+    "white_screen": {
+      "recall": 1.00,
+      "f1_score": "near_perfect",
+      "precision_estimated": 1.00
+    }
   }
 }
 ```
 
-#### Per-Class Metrics
+#### Performance Interpretation Guidelines
+
+**Excellent Performance (F1 > 0.75):**
+- Rectangles in single-shape tasks
+- Mixed-shape classification
+- White-screen detection
+
+**Good Performance (F1 0.65-0.75):**
+- Triangles in single-shape tasks
+- Multi-rectangle classification
+
+**Poor Performance (F1 < 0.30):**
+- All circle-related classifications
+- Multi-triangle classification
+
+#### Key Research Findings
+
+1. **Polygonal Shape Advantage**: Rectangles and triangles consistently outperform circles
+2. **Edge Detection Sensitivity**: Shapes with clear edges (polygons) produce stronger speckle signals
+3. **Circle Challenge**: Circular stimuli show minimal neural response differentiation
+4. **Complexity Impact**: Multi-shape scenarios reduce overall performance
+5. **Binary Classification Success**: Mixed vs. white-screen classification works excellently
+
+#### Statistical Significance
+
+When interpreting K-fold results, consider:
+- **High Variance Expected**: Given the biological nature of neural signals
+- **Subject Dependency**: Performance may vary significantly between subjects
+- **Shape-Specific Patterns**: Expect consistent poor performance on circles across all folds
+- **Validation Strategy**: Use stratified K-fold to maintain class distribution
+
+#### Example K-fold Results Interpretation
 
 ```csv
-class,metric,mean,std
-Circle,precision,0.7234,0.0456
-Circle,recall,0.6789,0.0523
-Circle,f1-score,0.7001,0.0489
-Rectangle,precision,0.8956,0.0234
-Rectangle,recall,0.9123,0.0198
-Rectangle,f1-score,0.9038,0.0216
+fold,rectangle_recall,triangle_recall,circle_recall,overall_accuracy
+1,1.00,0.85,0.00,0.62
+2,1.00,0.95,0.00,0.65
+3,1.00,0.90,0.00,0.63
+4,1.00,0.80,0.05,0.62
+5,1.00,0.92,0.00,0.64
+mean,1.00,0.88,0.01,0.63
+std,0.00,0.06,0.02,0.01
 ```
+
+This pattern aligns with the published research where rectangles achieve perfect recall, triangles show good but variable performance, and circles remain challenging to classify.
 
 ### Visualization
 
