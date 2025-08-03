@@ -16,6 +16,7 @@ This study introduces a non‑invasive approach for neurovisual classification o
 - **Temporal Pattern Analysis**: ConvLSTM architecture that captures both spatial and temporal dependencies in speckle patterns
 - **Data Processing Pipeline**: Comprehensive tools for processing video files and extracting sequential speckle patterns
 - **Multiple Feature Extraction**: Various distance metrics (Manhattan, Euclidean, Normalized Cross-Correlation)
+- **Synthetic Dataset Generation**: Complete pipeline for generating synthetic shape videos for testing and validation
 - **Comprehensive Evaluation**: Advanced visualization and analysis tools for model performance
 - **Multi-subject Support**: Framework for handling data from multiple subjects and experimental conditions
 - **Configuration-based Training**: Flexible YAML-based configuration system for reproducible experiments
@@ -27,35 +28,41 @@ visual-cortex-speckle/
 ├── src/
 │   ├── data/
 │   │   ├── __init__.py
-│   │   ├── dataset.py          # Dataset classes and data loading
-│   │   └── preprocessing.py    # Video processing and feature extraction
+│   │   ├── dataset.py                    # Dataset classes and data loading
+│   │   ├── preprocessing.py              # Video processing and feature extraction
+│   │   ├── shape_dataset_generator.py    # Synthetic shape video generator
+│   │   └── synthetic_shape_dataset.py    # PyTorch dataset for synthetic shapes
 │   ├── models/
 │   │   ├── __init__.py
-│   │   ├── convlstm.py        # ConvLSTM architecture (default)
-│   │   ├── conv1d.py          # 1D CNN architecture
-│   │   └── base_model.py      # Base model class
+│   │   ├── convlstm.py                  # ConvLSTM architecture (default)
+│   │   ├── conv1d.py                    # 1D CNN architecture
+│   │   └── base_model.py                # Base model class
 │   ├── training/
 │   │   ├── __init__.py
-│   │   ├── trainer.py         # Training pipeline
-│   │   └── evaluation.py      # Model evaluation and metrics
+│   │   ├── trainer.py                   # Training pipeline
+│   │   └── evaluation.py                # Model evaluation and metrics
 │   ├── utils/
 │   │   ├── __init__.py
-│   │   ├── visualization.py   # Plotting and visualization tools
-│   │   └── config.py          # Configuration management
-│   └── main.py                # Main entry point
+│   │   ├── visualization.py             # Plotting and visualization tools
+│   │   └── config.py                    # Configuration management
+│   └── main.py                          # Main entry point
 ├── configs/
-│   ├── default.yaml           # Default ConvLSTM configuration
-│   ├── basic_shapes.yaml      # Basic shapes configuration
-│   └── convlstm.yaml         # Specific ConvLSTM configuration
-├── data/                      # Data directory
-├── models/                    # Saved model checkpoints
-├── results/                   # Training results and plots
-├── notebooks/                 # Jupyter notebooks for analysis
-├── tests/                     # Unit tests
-├── requirements.txt           # Python dependencies
-├── setup.py                   # Package setup
-├── Makefile                   # Build automation
-└── README.md                  # This file
+│   ├── default.yaml                     # Default ConvLSTM configuration
+│   ├── basic_shapes.yaml                # Basic shapes configuration
+│   ├── convlstm.yaml                   # Specific ConvLSTM configuration
+│   └── synthetic_shapes.yaml            # Synthetic dataset configuration
+├── data/                                # Data directory
+├── models/                              # Saved model checkpoints
+├── results/                             # Training results and plots
+├── notebooks/                           # Jupyter notebooks for analysis
+├── tests/                               # Unit tests
+├── generate_shapes_dataset.py           # Synthetic dataset generation pipeline
+├── demo_shapes.py                       # Demo script for synthetic shapes
+├── requirements.txt                     # Python dependencies
+├── setup.py                             # Package setup
+├── Makefile                             # Build automation
+├── SYNTHETIC_SHAPES_README.md           # Detailed synthetic dataset documentation
+└── README.md                            # This file
 ```
 
 ## Quick Start
@@ -460,6 +467,161 @@ python src/main.py --mode train_kfold \
     --k_folds 5
 ```
 
+## Synthetic Shape Dataset Generation
+
+### Overview
+
+The project includes a comprehensive synthetic shape dataset generator that creates 8 types of videos as described in the research paper. Each video contains 100 frames representing different visual stimuli for speckle pattern analysis and model training/testing.
+
+### Video Types Generated
+
+The synthetic dataset generator creates the following 8 video types:
+
+1. **Blank Background** (2 types)
+   - `blank_white`: Pure white background
+   - `blank_black`: Pure black background
+
+2. **Single Shapes** (3 types)
+   - `single_circle`: One circle on random background
+   - `single_rectangle`: One rectangle on random background
+   - `single_triangle`: One triangle on random background
+
+3. **Multi Shapes - Same Type** (3 types)
+   - `multi_circles`: Multiple circles (3-8 objects)
+   - `multi_rectangles`: Multiple rectangles (3-8 objects)
+   - `multi_triangles`: Multiple triangles (3-8 objects)
+
+4. **Mixed Multi Shapes** (1 type)
+   - `mixed_multi_shapes`: Multiple different shapes together (4-10 objects)
+
+### Quick Start with Synthetic Data
+
+#### 1. Generate Demo Dataset
+
+```bash
+# Run interactive demo
+python demo_shapes.py
+
+# This creates a small demo dataset in data/demo_shapes/
+```
+
+#### 2. Generate Full Synthetic Dataset
+
+```bash
+# Generate dataset with default settings
+python generate_shapes_dataset.py
+
+# Generate with custom configuration
+python generate_shapes_dataset.py --config configs/synthetic_shapes.yaml
+
+# Generate only (no training)
+python generate_shapes_dataset.py --generate-only
+```
+
+#### 3. Train on Synthetic Data
+
+```bash
+# Full pipeline: generate + train
+python generate_shapes_dataset.py
+
+# Train only (dataset must exist)
+python generate_shapes_dataset.py --train-only --dataset-dir data/synthetic_shapes
+```
+
+### Synthetic Dataset Features
+
+- **Realistic Motion**: Shapes have subtle sinusoidal movement to simulate natural variation
+- **Random Parameters**: Shape sizes (20-80 pixels), positions, and colors are randomized
+- **Background Variation**: Random white or black backgrounds with opposite colored shapes
+- **Configurable**: All parameters adjustable via `configs/synthetic_shapes.yaml`
+- **Metadata**: Each video includes JSON metadata about shapes and parameters
+- **PyTorch Integration**: Built-in dataset classes for seamless ML workflows
+
+### Configuration
+
+Edit `configs/synthetic_shapes.yaml` to customize generation:
+
+```yaml
+data:
+  videos_per_type: 20        # Number of videos per type
+  frame_width: 640           # Video width  
+  frame_height: 480          # Video height
+  frames_per_video: 100      # Video length (frames)
+  min_shape_size: 20         # Minimum shape size
+  max_shape_size: 80         # Maximum shape size
+
+processing:
+  feature_type: "manhattan"  # Distance metric for speckle analysis
+  n_chunks: 50              # Chunks per video for training
+  frames_limit: 10000       # Max frames to process per video
+```
+
+### Dataset Structure
+
+Generated synthetic datasets follow this structure:
+
+```
+data/synthetic_shapes/
+├── dataset_info.json                 # Dataset metadata
+├── blank_white/
+│   ├── blank_white_0000.mp4
+│   ├── blank_white_0000_metadata.json
+│   └── ...
+├── blank_black/
+├── single_circle/
+├── single_rectangle/
+├── single_triangle/
+├── multi_circles/
+├── multi_rectangles/
+├── multi_triangles/
+└── mixed_multi_shapes/
+```
+
+### Integration with Speckle Analysis
+
+The synthetic dataset integrates with the existing speckle pattern analysis pipeline:
+
+- **Same Feature Extraction**: Uses identical distance metrics (Manhattan, Euclidean, NCC) as real data
+- **Temporal Analysis**: Extracts features between consecutive frames like real speckle data
+- **Compatible Models**: Works with existing ConvLSTM and Conv1D architectures
+- **Ground Truth**: Provides known labels for validation and benchmarking
+
+### Python API Usage
+
+```python
+from src.data.shape_dataset_generator import ShapeDatasetGenerator
+from src.data.synthetic_shape_dataset import SyntheticShapeDataLoader
+
+# Generate synthetic dataset
+generator = ShapeDatasetGenerator(
+    frame_width=640,
+    frame_height=480,
+    frames_per_video=100
+)
+
+stats = generator.generate_dataset(
+    output_dir="data/synthetic_shapes",
+    videos_per_type=20,
+    seed=42
+)
+
+# Create data loaders for training
+data_loader = SyntheticShapeDataLoader(batch_size=32)
+train_loader, val_loader, test_loader = data_loader.create_data_loaders(
+    root_dir="data/synthetic_shapes",
+    feature_type='manhattan',
+    n_chunks=50
+)
+```
+
+### Use Cases
+
+- **Model Development**: Test and debug models with known ground truth
+- **Benchmarking**: Compare model performance across different architectures
+- **Data Augmentation**: Supplement real speckle data with synthetic samples
+- **Algorithm Validation**: Verify feature extraction and analysis pipelines
+- **Educational**: Understand speckle pattern classification without complex experimental setup
+
 ## Model Architecture
 
 ![alt text](figures/Fig4.png)
@@ -565,10 +727,17 @@ The project supports classification of:
 2. **Multi-shapes**: Multiple instances of basic shapes (M_Circle, M_Rectangle, M_Triangle)
 3. **Extended Shapes**: Additional geometric patterns
 4. **Sequential Patterns**: Temporal speckle patterns for ConvLSTM analysis
+5. **Synthetic Shapes**: Computer-generated shape videos for testing and validation
+   - Blank backgrounds (white/black)
+   - Single shapes with motion
+   - Multiple same-type shapes
+   - Mixed multi-shape compositions
 
 ## Data Preparation
 
-### 1. Directory Structure
+### Option 1: Real Speckle Data
+
+#### 1. Directory Structure
 
 Place your video files in the following structure:
 ```
@@ -581,6 +750,35 @@ data/raw/
     ├── Circle/
     ├── Rectangle/
     └── Triangle/
+```
+
+### Option 2: Synthetic Shape Data
+
+Generate synthetic shape videos for testing and development:
+
+```bash
+# Quick demo generation
+python demo_shapes.py
+
+# Full synthetic dataset
+python generate_shapes_dataset.py --generate-only
+
+# Custom configuration
+python generate_shapes_dataset.py --config configs/synthetic_shapes.yaml --generate-only
+```
+
+This creates a dataset structure like:
+```
+data/synthetic_shapes/
+├── blank_white/
+├── blank_black/
+├── single_circle/
+├── single_rectangle/
+├── single_triangle/
+├── multi_circles/
+├── multi_rectangles/
+├── multi_triangles/
+└── mixed_multi_shapes/
 ```
 
 ### 2. Process Video Data

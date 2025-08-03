@@ -1,0 +1,82 @@
+data:
+  # Synthetic shape dataset configuration
+  dataset_type: "synthetic_shapes"
+  output_dir: "data/synthetic_shapes"
+  videos_per_type: 20  # Number of videos to generate per shape type
+  
+  # Video generation parameters
+  frame_width: 640
+  frame_height: 480
+  frames_per_video: 100  # 100 frames for video length
+  fps: 30
+  
+  # Shape parameters
+  min_shape_size: 20
+  max_shape_size: 80
+  motion_amplitude: 5  # Pixels of motion for shape movement
+  
+  # Video types to generate (8 types as described in paper)
+  video_types:
+    - "blank_white"      # Type 1: Blank white background
+    - "blank_black"      # Type 1: Blank black background  
+    - "single_circle"    # Type 2: Single circle
+    - "single_rectangle" # Type 2: Single rectangle
+    - "single_triangle"  # Type 2: Single triangle
+    - "multi_circles"    # Type 3: Multiple circles (same shape)
+    - "multi_rectangles" # Type 3: Multiple rectangles (same shape)
+    - "multi_triangles"  # Type 3: Multiple triangles (same shape)
+    - "mixed_multi_shapes" # Type 4: Mixed multiple shapes
+  
+  # Multi-shape parameters
+  multi_shapes:
+    min_count: 3
+    max_count: 8
+  
+  mixed_shapes:
+    min_count: 4
+    max_count: 10
+
+# Model configuration for synthetic shape classification
+model:
+  model_type: "conv1d"
+  num_classes: 9  # 8 video types + background
+  input_channels: 1
+  num_filters: 64
+  kernel_size: 3
+  dropout_rate: 0.1
+
+# Training configuration
+training:
+  batch_size: 32
+  epochs: 200
+  learning_rate: 0.001
+  optimizer: "adam"
+  scheduler: "plateau"
+  validation_split: 0.2
+  early_stopping_patience: 50
+  save_every: 25
+  save_best: true
+
+# Data processing for synthetic videos
+processing:
+  feature_type: "manhattan"  # Distance metric for speckle pattern analysis
+  n_chunks: 50  # Number of chunks per video for feature extraction
+  train_size: 0.7  # 70% for training, 30% for testing
+  frames_limit: 10000  # Maximum frames to process per video
+
+scheduler:
+  mode: "min"
+  factor: 0.5
+  patience: 15
+  min_lr: 0.0001
+  verbose: true
+
+# Output directories
+save_dir: "models/synthetic_shapes"
+log_dir: "logs/synthetic_shapes"
+results_dir: "results/synthetic_shapes"
+
+# System configuration
+device: "auto"
+seed: 42
+verbose: true
