@@ -45,6 +45,21 @@ train-kfold-custom: ## Train with K-fold and custom parameters (usage: make trai
 		$(if $(SHAPES),--shapes $(SHAPES)) \
 		$(if $(STRATIFIED),--kfold_stratified)
 
+train-loso: ## Train model with Leave-One-Subject-Out cross-validation
+	$(PYTHON) src/main.py --mode train_loso --config configs/loso_convlstm.yaml
+
+train-loso-basic: ## Train model with LOSO cross-validation on basic shapes
+	$(PYTHON) src/main.py --mode train_loso --config configs/loso_basic_shapes.yaml
+
+train-loso-custom: ## Train with LOSO and custom parameters (usage: make train-loso-custom EPOCHS=50 SUBJECTS="Subject1 Subject2")
+	$(PYTHON) src/main.py --mode train_loso \
+		$(if $(EPOCHS),--epochs $(EPOCHS)) \
+		$(if $(BATCH_SIZE),--batch_size $(BATCH_SIZE)) \
+		$(if $(LR),--learning_rate $(LR)) \
+		$(if $(SUBJECTS),--subjects $(SUBJECTS)) \
+		$(if $(SHAPES),--shapes $(SHAPES)) \
+		$(if $(LOSO_SEED),--loso_random_state $(LOSO_SEED))
+
 train-custom: ## Train with custom parameters (usage: make train-custom EPOCHS=100 BATCH_SIZE=64)
 	$(PYTHON) src/main.py --mode train \
 		$(if $(EPOCHS),--epochs $(EPOCHS)) \

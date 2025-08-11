@@ -1,0 +1,56 @@
+# LOSO (Leave-One-Subject-Out) Cross-Validation Configuration
+# This configuration is optimized for LOSO cross-validation training
+
+# Data configuration
+data:
+  root_path: "../RawData/"
+  pickle_path: "../Data/vis_cortex_data.pickle"
+  subjects: null  # null for all subjects, or specify list: ["ZeevKal", "Yevgeny", "Subject3", etc.]
+  shape_filter: ["Circle", "Rectangle", "Triangle"]  # or null for all shapes
+  feature_type: "manhattan"  # "manhattan", "euclidean", or "ncc"
+  train_size: 0.8  # Not used in LOSO, but kept for compatibility
+  n_chunks: 50  # Number of chunks to split each video into
+  frames_limit: 10000  # Maximum frames to process per video
+
+# Model configuration
+model:
+  model_type: "convlstm"  # "convlstm" or "conv1d"
+  num_classes: 3  # Will be updated automatically based on data
+  input_channels: 1
+  hidden_size: 64  # ConvLSTM hidden size
+  sequence_length: 64  # ConvLSTM sequence length
+  kernel_size: 3  # ConvLSTM kernel size
+  dropout_rate: 0.1
+  num_layers: 1  # Number of ConvLSTM layers
+
+# Training configuration
+training:
+  batch_size: 32
+  epochs: 100  # Reduced epochs per subject since LOSO trains multiple models
+  learning_rate: 0.001
+  optimizer: "adam"  # "adam" or "sgd"
+  scheduler: "plateau"  # "plateau", "step", or "cosine"
+  validation_split: 0.2  # Validation split within training subjects
+  early_stopping_patience: 15  # Early stopping patience
+  save_every: 25  # Save checkpoint every N epochs
+  save_best: true  # Save best model
+  
+  # LOSO specific settings
+  use_loso: true
+  loso_random_state: 42
+
+# Scheduler configuration
+scheduler:
+  factor: 0.5
+  patience: 10
+  min_lr: 0.00001
+
+# Paths
+save_dir: "checkpoints"
+results_dir: "results"
+log_dir: "logs"
+
+# Other settings
+device: "auto"  # "auto", "cuda", or "cpu"
+seed: 42
+verbose: true

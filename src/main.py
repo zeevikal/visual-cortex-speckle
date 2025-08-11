@@ -350,11 +350,128 @@ def train_model_kfold(config):
     return kfold_trainer, cv_results
 
 
+def train_model_loso(config):
+    """Train a model using Leave-One-Subject-Out cross-validation."""
+    print("Starting Leave-One-Subject-Out cross-validation training...")
+    print_config(config)
+    
+    # Set seed for reproducibility
+    set_seed(config.seed)
+    
+    # Get device
+    device = get_device(config.device)
+    print(f"Using device: {device}")
+    
+    # Load speckle data
+    print("Loading data...")
+    with open(config.data.pickle_path, 'rb') as f:
+        speckle_data = pickle.load(f)
+    
+    # Get all subjects from data if not specified
+    all_subjects = list(speckle_data.keys())
+    subjects_to_use = config.data.subjects if config.data.subjects else all_subjects
+    
+    # Filter subjects that exist in data
+    subjects_to_use = [s for s in subjects_to_use if s in speckle_data]
+    
+    if len(subjects_to_use) < 2:
+        raise ValueError(f"LOSO requires at least 2 subjects. Found: {subjects_to_use}")
+    
+    print(f"LOSO will be performed on {len(subjects_to_use)} subjects: {subjects_to_use}")
+    
+    # Update number of classes based on data
+    from .data.preprocessing import extract_features_from_data
+    from sklearn.preprocessing import LabelEncoder
+    
+    all_labels = []
+    for subject in subjects_to_use:
+        if subject in speckle_data:
+            for data in speckle_data[subject]:
+                label = data[1]
+                if config.data.shape_filter is None or label in config.data.shape_filter:
+                    all_labels.append(label)
+    
+    label_encoder = LabelEncoder()
+    label_encoder.fit(all_labels)
+    class_names = label_encoder.classes_.tolist()
+    config.model.num_classes = len(class_names)
+    
+    print(f"Number of classes: {config.model.num_classes}")
+    print(f"Class names: {class_names}")
+    
+    # Create LOSO trainer
+    from .training.loso_trainer import LOSOTrainer
+    
+    loso_trainer = LOSOTrainer(
+        model_config=config.model.__dict__,
+        training_config=config.training.__dict__,
+        device=device,
+        save_dir=os.path.join(config.save_dir, 'loso'),
+        log_dir=os.path.join(config.log_dir, 'loso') if config.log_dir else None,
+        verbose=config.verbose
+    )
+    
+    # Perform LOSO cross-validation
+    loso_results = loso_trainer.train_loso(
+        speckle_data=speckle_data,
+        subjects=subjects_to_use,
+        class_names=class_names,
+        shape_filter=config.data.shape_filter,
+        feature_type=config.data.feature_type,
+        n_chunks=config.data.n_chunks,
+        random_state=getattr(config.training, 'loso_random_state', 42)
+    )
+    
+    # Save best model
+    best_model_path = os.path.join(config.save_dir, 'best_loso_model.pth')
+    loso_trainer.save_best_model(best_model_path)
+    
+    # Create comprehensive results summary
+    results_summary = {
+        'config': config.__dict__,
+        'loso_results': loso_results,
+        'best_model_path': best_model_path,
+        'class_names': class_names,
+        'subjects': subjects_to_use
+    }
+    
+    # Save results summary
+    summary_path = os.path.join(config.results_dir, 'loso_training_summary.json')
+    with open(summary_path, 'w') as f:
+        # Convert to JSON-serializable format
+        json_summary = {}
+        for key, value in results_summary.items():
+            if key == 'config':
+                json_summary[key] = asdict(value)
+            elif key == 'loso_results':
+                # Skip complex nested structures
+                json_summary[key] = {
+                    'accuracy_mean': value.get('accuracy', {}).get('mean', 0),
+                    'accuracy_std': value.get('accuracy', {}).get('std', 0),
+                    'precision_mean': value.get('precision', {}).get('mean', 0),
+                    'precision_std': value.get('precision', {}).get('std', 0),
+                    'recall_mean': value.get('recall', {}).get('mean', 0),
+                    'recall_std': value.get('recall', {}).get('std', 0),
+                    'f1_score_mean': value.get('f1_score', {}).get('mean', 0),
+                    'f1_score_std': value.get('f1_score', {}).get('std', 0)
+                }
+            else:
+                json_summary[key] = value
+        json.dump(json_summary, f, indent=2)
+    
+    print(f"\nLOSO training completed!")
+    print(f"Results saved to: {config.save_dir}")
+    print(f"Best model saved to: {best_model_path}")
+    print(f"Summary saved to: {summary_path}")
+    
+    return loso_trainer, loso_results
+
+
 def main():
     """Main function."""
     parser = argparse.ArgumentParser(description="Visual Cortex Speckle Recognition")
     parser.add_argument("--config", type=str, help="Path to configuration file")
-    parser.add_argument("--mode", type=str, choices=["train", "train_kfold", "eval", "create_configs"], 
+    parser.add_argument("--mode", type=str, choices=["train", "train_kfold", "train_loso", "eval", "create_configs"], 
                        default="train", help="Mode to run")
     parser.add_argument("--model_path", type=str, help="Path to trained model (for evaluation)")
     
@@ -371,10 +488,14 @@ def main():
     parser.add_argument("--kfold_stratified", action="store_true", help="Use stratified K-fold")
     parser.add_argument("--kfold_random_state", type=int, help="Random state for K-fold")
     
+    # LOSO cross-validation arguments
+    parser.add_argument("--loso_random_state", type=int, help="Random state for LOSO")
+    
     args = parser.parse_args()
     
+    # Skip create_configs mode for now
     if args.mode == "create_configs":
-        create_config_templates()
+        print("Config templates creation not implemented yet.")
         return
     
     # Load configuration
@@ -406,6 +527,10 @@ def main():
     if args.kfold_random_state:
         config.training.kfold_random_state = args.kfold_random_state
     
+    # LOSO specific overrides  
+    if args.loso_random_state:
+        config.training.loso_random_state = args.loso_random_state
+    
     # Create directories
     os.makedirs(config.save_dir, exist_ok=True)
     os.makedirs(config.results_dir, exist_ok=True)
@@ -421,6 +546,8 @@ def main():
             train_model(config)
     elif args.mode == "train_kfold":
         train_model_kfold(config)
+    elif args.mode == "train_loso":
+        train_model_loso(config)
     elif args.mode == "eval":
         if not args.model_path:
             parser.error("--model_path is required for evaluation mode")

@@ -1,0 +1,54 @@
+# LOSO (Leave-One-Subject-Out) Cross-Validation Configuration for Basic Shapes
+# This configuration uses Conv1D model for basic shape classification
+
+# Data configuration
+data:
+  root_path: "../RawData/"
+  pickle_path: "../Data/vis_cortex_data.pickle"
+  subjects: null  # null for all subjects, or specify list: ["ZeevKal", "Yevgeny", "Subject3", etc.]
+  shape_filter: ["Circle", "Rectangle", "Triangle"]  # Basic shapes only
+  feature_type: "manhattan"  # "manhattan", "euclidean", or "ncc"
+  train_size: 0.8  # Not used in LOSO, but kept for compatibility
+  n_chunks: 30  # Number of chunks to split each video into
+  frames_limit: 8000  # Maximum frames to process per video
+
+# Model configuration
+model:
+  model_type: "conv1d"  # Use 1D CNN for simpler baseline
+  num_classes: 3  # Will be updated automatically based on data
+  input_channels: 1
+  num_filters: 64
+  kernel_size: 3
+  dropout_rate: 0.2
+
+# Training configuration
+training:
+  batch_size: 64  # Larger batch size for Conv1D
+  epochs: 75  # Fewer epochs for Conv1D
+  learning_rate: 0.0005
+  optimizer: "adam"  # "adam" or "sgd"
+  scheduler: "plateau"  # "plateau", "step", or "cosine"
+  validation_split: 0.2  # Validation split within training subjects
+  early_stopping_patience: 10  # Early stopping patience
+  save_every: 20  # Save checkpoint every N epochs
+  save_best: true  # Save best model
+  
+  # LOSO specific settings
+  use_loso: true
+  loso_random_state: 42
+
+# Scheduler configuration
+scheduler:
+  factor: 0.5
+  patience: 8
+  min_lr: 0.00001
+
+# Paths
+save_dir: "checkpoints"
+results_dir: "results"
+log_dir: "logs"
+
+# Other settings
+device: "auto"  # "auto", "cuda", or "cpu"
+seed: 42
+verbose: true

@@ -162,7 +162,24 @@ python src/main.py --mode train \
 make train-basic
 ```
 
-### 6. Model Evaluation
+### 6. Leave-One-Subject-Out (LOSO) Cross-Validation
+
+```bash
+# LOSO cross-validation with ConvLSTM
+python src/main.py --mode train_loso --config configs/loso_convlstm.yaml
+
+# LOSO cross-validation with basic shapes
+python src/main.py --mode train_loso --config configs/loso_basic_shapes.yaml
+
+# Quick start with make
+make train-loso
+make train-loso-basic
+
+# Custom LOSO parameters
+make train-loso-custom EPOCHS=75 SUBJECTS="Subject1 Subject2 Subject3"
+```
+
+### 7. Model Evaluation
 
 ```bash
 # Evaluate a trained model
@@ -174,6 +191,11 @@ python src/main.py --mode eval \
 python src/main.py --mode eval \
     --model_path checkpoints/best_kfold_model.pth \
     --config configs/kfold_convlstm.yaml
+
+# Evaluate LOSO best model
+python src/main.py --mode eval \
+    --model_path checkpoints/best_loso_model.pth \
+    --config configs/loso_convlstm.yaml
 
 # Use make for evaluation
 make eval MODEL_PATH=checkpoints/best_model.pth
@@ -466,6 +488,319 @@ python src/main.py --mode train_kfold \
     --batch_size 16 \
     --k_folds 5
 ```
+
+## Leave-One-Subject-Out (LOSO) Cross-Validation
+
+### Overview
+
+Leave-One-Subject-Out (LOSO) cross-validation is a specialized validation technique particularly important for neuroimaging and subject-based studies like visual cortex speckle imaging. In this approach, the model is trained on data from N-1 participants and evaluated on the held-out participant, cycling through all possible combinations.
+
+### Why LOSO for Visual Cortex Speckle Imaging?
+
+**Critical for Subject Generalization:**
+- **Individual Differences**: Each subject's neural responses and speckle patterns are unique
+- **Avoiding Data Leakage**: Prevents temporal correlation within subjects from inflating performance
+- **Clinical Relevance**: Tests the model's ability to work on completely new subjects
+- **Publication Standards**: Gold standard for subject-based neuroimaging studies
+
+**Research Validity:**
+- **True Generalization**: Tests model performance on entirely unseen subjects
+- **Statistical Rigor**: Provides unbiased performance estimates for new patients/subjects
+- **Clinical Translation**: Essential for developing systems that work across different individuals
+- **Regulatory Compliance**: Required for medical device validation
+
+### When to Use LOSO Cross-Validation
+
+**Mandatory for:**
+- **Subject-Based Studies**: When data comes from multiple human subjects
+- **Clinical Applications**: Medical device development and validation
+- **Neuroimaging Research**: Brain activity classification and analysis
+- **Publication Requirements**: High-impact journals often require LOSO validation
+- **Regulatory Approval**: FDA and other regulatory bodies expect subject-independent validation
+
+**LOSO vs. K-fold:**
+- **K-fold**: Randomly splits data, may include same subject in train/test
+- **LOSO**: Guarantees complete subject separation between train/test
+- **LOSO Results**: Typically lower but more realistic performance estimates
+
+### Key Features
+
+- **Subject-Level Separation**: Complete isolation of test subjects from training data
+- **Comprehensive Metrics**: Per-subject and average performance metrics across all subjects
+- **Detailed Analysis**: Subject-specific performance patterns and variability analysis
+- **Clinical Relevance**: Direct assessment of real-world deployment scenarios
+- **Visualization**: Subject-specific training curves and performance comparisons
+
+### Configuration
+
+Enable LOSO cross-validation in your configuration file:
+
+```yaml
+training:
+  use_loso: true
+  loso_random_state: 42
+```
+
+### Usage Examples
+
+#### Basic LOSO Training
+
+```bash
+# Train with predefined LOSO configuration
+python src/main.py --mode train_loso --config configs/loso_convlstm.yaml
+
+# Or use make
+make train-loso
+```
+
+#### Custom LOSO Parameters
+
+```bash
+# Custom training parameters for LOSO
+python src/main.py --mode train_loso \
+    --epochs 75 \
+    --batch_size 32 \
+    --learning_rate 0.001 \
+    --subjects ZeevKal Yevgeny Subject3 Subject4
+
+# With specific shapes
+python src/main.py --mode train_loso \
+    --shapes Circle Rectangle Triangle \
+    --feature_type euclidean
+```
+
+#### Make Commands
+
+```bash
+# Basic LOSO training
+make train-loso                    # ConvLSTM model
+make train-loso-basic             # Basic shapes with Conv1D
+
+# Custom LOSO training
+make train-loso-custom EPOCHS=50 SUBJECTS="Subject1 Subject2 Subject3"
+```
+
+### Python API Usage
+
+```python
+from src.training.loso_trainer import LOSOTrainer
+from src.data.dataset import SpeckleDataset
+
+# Load your speckle data
+with open('data/speckle_data.pickle', 'rb') as f:
+    speckle_data = pickle.load(f)
+
+# Create LOSO trainer
+loso_trainer = LOSOTrainer(
+    model_config={
+        'model_type': 'convlstm',
+        'num_classes': 3,
+        'hidden_size': 64,
+        'sequence_length': 64
+    },
+    training_config={
+        'batch_size': 32,
+        'epochs': 100,
+        'learning_rate': 0.001,
+        'early_stopping_patience': 20
+    },
+    device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+    save_dir='loso_results',
+    verbose=True
+)
+
+# Perform LOSO cross-validation
+subjects = ['Subject1', 'Subject2', 'Subject3', 'Subject4', 'Subject5', 'Subject6', 'Subject7', 'Subject8']
+loso_results = loso_trainer.train_loso(
+    speckle_data=speckle_data,
+    subjects=subjects,
+    class_names=['Circle', 'Rectangle', 'Triangle'],
+    feature_type='manhattan',
+    n_chunks=50,
+    random_state=42
+)
+
+# Get best model
+best_model, best_subject = loso_trainer.get_best_model()
+
+# Save best model
+loso_trainer.save_best_model('best_loso_model.pth')
+```
+
+### Results Structure
+
+After LOSO training, the following results are generated:
+
+```
+checkpoints/loso/
+├── subject_Subject1/
+│   ├── best_model.pth
+│   ├── subject_Subject1_test_confusion_matrix.png
+│   ├── subject_Subject1_test_classification_report.csv
+│   └── subject_Subject1_training_history.png
+├── subject_Subject2/
+│   └── ...
+├── subject_SubjectN/
+│   └── ...
+├── loso_summary.json              # Summary statistics
+├── loso_metrics.csv               # Detailed metrics per subject
+├── loso_per_class_metrics.csv     # Per-class performance
+├── loso_results_visualization.png  # Performance visualization
+└── loso_training_history.png      # Training curves comparison
+```
+
+### Results Interpretation
+
+The LOSO cross-validation results should be interpreted in the context of subject-independent generalization. Expected performance patterns based on the published research:
+
+#### Expected LOSO Performance Ranges
+
+LOSO results typically show higher variance and lower mean performance compared to K-fold, reflecting the challenge of subject-independent generalization:
+
+```json
+{
+  "loso_expected_patterns": {
+    "rectangle_classification": {
+      "loso_recall_range": "0.80-1.00",
+      "subject_variability": "high",
+      "best_subjects": "consistent_performers",
+      "worst_subjects": "high_variability_subjects"
+    },
+    "triangle_classification": {
+      "loso_recall_range": "0.60-0.90",
+      "subject_variability": "very_high",
+      "individual_differences": "significant"
+    },
+    "circle_classification": {
+      "loso_recall_range": "0.00-0.20",
+      "subject_variability": "low",
+      "consistent_difficulty": "across_all_subjects"
+    }
+  }
+}
+```
+
+#### Subject-Specific Performance Patterns
+
+1. **High Performers**: Some subjects may achieve near-perfect classification
+2. **Challenging Subjects**: Others may show consistently lower performance
+3. **Shape Dependencies**: Subject difficulty varies by shape type
+4. **Neural Response Variability**: Individual cortical organization differences
+
+#### Statistical Significance and Clinical Relevance
+
+```python
+# Example LOSO results interpretation
+loso_results = {
+    'subject_results': {
+        'Subject1': {'accuracy': 0.95, 'f1_score': 0.92},
+        'Subject2': {'accuracy': 0.78, 'f1_score': 0.75},
+        'Subject3': {'accuracy': 0.88, 'f1_score': 0.85},
+        'Subject4': {'accuracy': 0.65, 'f1_score': 0.62},
+        'Subject5': {'accuracy': 0.82, 'f1_score': 0.79},
+        'Subject6': {'accuracy': 0.91, 'f1_score': 0.89},
+        'Subject7': {'accuracy': 0.73, 'f1_score': 0.70},
+        'Subject8': {'accuracy': 0.86, 'f1_score': 0.83}
+    },
+    'overall_performance': {
+        'mean_accuracy': 0.82,
+        'std_accuracy': 0.09,
+        'clinical_threshold': 0.75,  # Minimum for clinical use
+        'subjects_above_threshold': 6  # out of 8
+    }
+}
+```
+
+### Visualization
+
+The LOSO implementation generates comprehensive visualizations:
+
+1. **Per-Subject Performance**: Bar charts showing each subject's performance as test case
+2. **Performance Variability**: Box plots showing metric distributions across subjects
+3. **Subject-Specific Training**: Individual training curves for each LOSO fold
+4. **Clinical Thresholds**: Performance relative to clinical acceptability thresholds
+
+### Best Practices for LOSO
+
+1. **Sufficient Subjects**: Minimum 6-8 subjects for reliable LOSO estimates
+2. **Balanced Subject Data**: Ensure each subject has adequate data for robust testing
+3. **Early Stopping**: Use conservative early stopping since each fold trains independently
+4. **Subject Metadata**: Track subject characteristics that might affect performance
+5. **Statistical Testing**: Use appropriate tests for small sample sizes (subjects)
+
+### Clinical and Research Applications
+
+#### Medical Device Development
+```bash
+# Regulatory-compliant LOSO validation
+python src/main.py --mode train_loso \
+    --config configs/clinical_loso.yaml \
+    --subjects Patient001 Patient002 Patient003 Patient004 Patient005 Patient006 Patient007 Patient008
+```
+
+#### Research Publication
+```python
+# Statistical analysis for publication
+def analyze_loso_for_publication(loso_results):
+    subjects = loso_results['subject_results']
+    accuracies = [result['accuracy'] for result in subjects.values()]
+    
+    # Calculate statistics
+    mean_acc = np.mean(accuracies)
+    std_acc = np.std(accuracies)
+    ci_95 = 1.96 * std_acc / np.sqrt(len(accuracies))
+    
+    return {
+        'mean_accuracy': f"{mean_acc:.3f} ± {std_acc:.3f}",
+        '95_confidence_interval': f"[{mean_acc-ci_95:.3f}, {mean_acc+ci_95:.3f}]",
+        'individual_range': f"[{min(accuracies):.3f}, {max(accuracies):.3f}]"
+    }
+```
+
+### Troubleshooting LOSO
+
+#### Common Issues
+
+1. **Insufficient Subject Data**: Some subjects may have too little data for reliable testing
+2. **Subject Imbalance**: Unequal amounts of data per subject
+3. **High Variance**: Large performance differences between subjects (expected)
+4. **Training Time**: Longer than K-fold since each subject trains independently
+
+#### Performance Optimization
+
+```bash
+# Memory-efficient LOSO
+python src/main.py --mode train_loso \
+    --batch_size 16 \
+    --epochs 50 \
+    --early_stopping_patience 10
+
+# Faster LOSO with Conv1D
+python src/main.py --mode train_loso \
+    --config configs/loso_basic_shapes.yaml
+```
+
+### Comparison: K-fold vs LOSO
+
+| Aspect | K-fold Cross-Validation | LOSO Cross-Validation |
+|--------|------------------------|----------------------|
+| **Data Splitting** | Random splits across all data | Subject-level splits |
+| **Generalization** | General model performance | Subject-independent performance |
+| **Performance** | Higher mean, lower variance | Lower mean, higher variance |
+| **Clinical Relevance** | Limited | High |
+| **Publication Value** | Good for model comparison | Essential for subject studies |
+| **Computational Cost** | Moderate | Higher (subject-dependent) |
+| **Sample Size** | Data points | Number of subjects |
+
+### Expected Results Pattern
+
+Based on the research findings, LOSO validation typically shows:
+
+1. **Rectangle Detection**: Consistently good across subjects (mean LOSO accuracy: 0.85-0.95)
+2. **Triangle Detection**: Variable across subjects (mean LOSO accuracy: 0.65-0.85)
+3. **Circle Detection**: Consistently poor across subjects (mean LOSO accuracy: 0.00-0.15)
+4. **Subject Variability**: High individual differences in neural speckle responses
+5. **Clinical Feasibility**: Demonstrates real-world applicability of the technique
 
 ## Synthetic Shape Dataset Generation
 
@@ -1206,6 +1541,11 @@ make train-kfold        # K-fold with ConvLSTM model
 make train-kfold-basic  # K-fold with basic shapes (Conv1D)
 make train-kfold-custom K_FOLDS=10 EPOCHS=50 BATCH_SIZE=32  # Custom K-fold
 
+# LOSO cross-validation training
+make train-loso         # LOSO with ConvLSTM model
+make train-loso-basic   # LOSO with basic shapes (Conv1D)
+make train-loso-custom EPOCHS=75 SUBJECTS="Subject1 Subject2"  # Custom LOSO
+
 # Evaluation and testing
 make eval MODEL_PATH=checkpoints/best_model.pth     # Evaluate model
 make test               # Run unit tests
@@ -1236,33 +1576,54 @@ visual-cortex-speckle/
 │   ├── best_model.pth           # Best ConvLSTM model
 │   ├── final_model.pth          # Final training state
 │   ├── best_kfold_model.pth     # Best K-fold model
+│   ├── best_loso_model.pth      # Best LOSO model
 │   ├── checkpoint_epoch_*.pth   # Periodic checkpoints
-│   └── kfold/                   # K-fold results
-│       ├── fold_1/
+│   ├── kfold/                   # K-fold results
+│   │   ├── fold_1/
+│   │   │   ├── best_model.pth
+│   │   │   ├── fold_1_validation_confusion_matrix.png
+│   │   │   ├── fold_1_validation_classification_report.csv
+│   │   │   └── fold_1_training_history.png
+│   │   ├── fold_2/
+│   │   │   └── ...
+│   │   ├── fold_N/
+│   │   │   └── ...
+│   │   ├── kfold_summary.json
+│   │   ├── kfold_metrics.csv
+│   │   ├── kfold_per_class_metrics.csv
+│   │   ├── kfold_results_visualization.png
+│   │   └── kfold_training_history.png
+│   └── loso/                    # LOSO results
+│       ├── subject_Subject1/
 │       │   ├── best_model.pth
-│       │   ├── fold_1_validation_confusion_matrix.png
-│       │   ├── fold_1_validation_classification_report.csv
-│       │   └── fold_1_training_history.png
-│       ├── fold_2/
+│       │   ├── subject_Subject1_test_confusion_matrix.png
+│       │   ├── subject_Subject1_test_classification_report.csv
+│       │   └── subject_Subject1_training_history.png
+│       ├── subject_Subject2/
 │       │   └── ...
-│       ├── fold_N/
+│       ├── subject_SubjectN/
 │       │   └── ...
-│       ├── kfold_summary.json
-│       ├── kfold_metrics.csv
-│       ├── kfold_per_class_metrics.csv
-│       ├── kfold_results_visualization.png
-│       └── kfold_training_history.png
+│       ├── loso_summary.json
+│       ├── loso_metrics.csv
+│       ├── loso_per_class_metrics.csv
+│       ├── loso_results_visualization.png
+│       └── loso_training_history.png
 ├── logs/
 │   ├── tensorboard_logs/        # TensorBoard training logs
-│   └── kfold/                   # K-fold tensorboard logs
-│       ├── fold_1/
-│       ├── fold_2/
+│   ├── kfold/                   # K-fold tensorboard logs
+│   │   ├── fold_1/
+│   │   ├── fold_2/
+│   │   └── ...
+│   └── loso/                    # LOSO tensorboard logs
+│       ├── subject_Subject1/
+│       ├── subject_Subject2/
 │       └── ...
 ├── results/
 │   ├── test_classification_report.csv
 │   ├── test_confusion_matrix.png
 │   ├── test_analysis.json
 │   ├── kfold_training_summary.json
+│   ├── loso_training_summary.json
 │   └── visualizations/
 │       ├── training_history.png
 │       ├── sample_patterns.png
